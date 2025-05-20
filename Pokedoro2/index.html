@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokédoro</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-red-600 flex items-center justify-center min-h-screen text-white font-bold">
+  <!-- Logo Screen -->
+  <div id="logo-screen" class="absolute flex items-center justify-center w-full h-full">
+    <img src="assets/logo.png" alt="Pokédoro Logo" class="w-124">
+  </div>
+
+  <!-- Pokémon Selection Screen -->
+  <div id="pokemon-selection" class="hidden flex flex-col items-center">
+    <h2 class="text-6xl mb-10">Choose Your Pokémon!</h2>
+    <div class="grid grid-cols-3 gap-4" style="width:100%;max-width:700px;">
+      <div class="pokemon-card" onclick="selectPokemon('bulbasaur')">
+        <p class="text-center text-3xl">Bulbasaur</p>
+        <img src="assets/bulbasaur.gif" alt="Bulbasaur">
+      </div>
+      <div class="pokemon-card" onclick="selectPokemon('charmander')">
+        <p class="text-center text-3xl">Charmander</p>
+        <img src="assets/charmander.gif" alt="Charmander">
+      </div>
+      <div class="pokemon-card" onclick="selectPokemon('squirtle')">
+        <p class="text-center text-3xl">Squirtle</p>
+        <img src="assets/squirtle.gif" alt="Squirtle">
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Screen -->
+  <div id="settings-screen" class="hidden flex flex-col items-center">
+    <h2 class="text-5xl mb-6">Set Timer Durations</h2>
+    <div class="flex flex-col space-y-6 w-full max-w-md">
+      <div>
+        <label class="block text-3xl mb-2">Pomodoro Duration (minutes):</label>
+        <input id="pomodoro-duration" type="number" min="1" value="25" class="text-black text-2xl py-4 px-4 rounded w-full">
+      </div>
+      <div>
+        <label class="block text-3xl mb-2">Break Duration (minutes):</label>
+        <input id="break-duration" type="number" min="1" value="5" class="text-black text-2xl py-4 px-4 rounded w-full">
+      </div>
+      <div class="flex flex-col sm:flex-row w-full justify-center">
+        <button onclick="goBackToSelection()" class="button button-gray w-full sm:w-auto">Back</button>
+        <button onclick="startTimer()" class="button button-green w-full sm:w-auto">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timer Screen (Pomodoro) -->
+  <div id="timer-screen" class="hidden flex flex-col items-center">
+    <svg width="250" height="250" class="mb-4">
+      <circle cx="125" cy="125" r="112.5" fill="none" stroke="white" stroke-width="25" class="timer-circle" id="timer-circle" />
+      <image id="pokemon-sprite" x="50" y="50" width="150" height="150" />
+    </svg>
+    <p id="timer-display" class="text-6xl">25:00</p>
+    <div class="flex flex-col sm:flex-row w-full justify-center">
+      <button id="play-pause-btn" onclick="toggleTimer()" class="button button-blue w-full sm:w-auto">Play</button>
+      <button id="end-btn" onclick="endPomodoro()" class="button button-red w-full sm:w-auto">End</button>
+      <button onclick="goBackToSelection()" class="button button-gray w-full sm:w-auto">Back</button>
+    </div>
+  </div>
+
+  <!-- Break Timer Screen -->
+  <div id="break-timer-screen" class="hidden flex flex-col items-center">
+    <svg width="250" height="250" class="mb-4">
+      <circle cx="125" cy="125" r="112.5" fill="none" stroke="white" stroke-width="25" class="timer-circle" id="break-timer-circle" />
+      <image id="break-pokemon-sprite" x="50" y="50" width="150" height="150" />
+    </svg>
+    <p id="break-timer-display" class="text-6xl">5:00</p>
+    <div class="flex flex-col sm:flex-row w-full justify-center">
+      <button id="break-play-pause-btn" onclick="toggleBreakTimer()" class="button button-blue w-full sm:w-auto">Play</button>
+      <button id="break-end-btn" onclick="endBreak()" class="button button-red w-full sm:w-auto">End</button>
+      <button onclick="goBackToSelection()" class="button button-gray w-full sm:w-auto">Back</button>
+    </div>
+  </div>
+
+  <!-- Evolution Screen -->
+  <div id="evolution-screen" class="hidden flex flex-col items-center">
+    <h2 id="evolution-message" class="text-3xl mb-6"></h2>
+    <img id="evolution-sprite" class="w-32 h-32">
+    <button onclick="goBackToSelection()" class="button button-gray mt-8 w-full sm:w-auto">Back</button>
+  </div>
+
+  <!-- Devolution Screen -->
+  <div id="devolution-screen" class="hidden flex flex-col items-center">
+    <h2 id="devolution-message" class="text-3xl mb-6"></h2>
+    <img id="devolution-sprite" class="w-32 h-32">
+    <button onclick="goBackToSelection()" class="button button-gray mt-8 w-full sm:w-auto">Back</button>
+  </div>
+
+  <script>
+    // State management
+    const state = {
+      currentScreen: 'logo',
+      selectedPokemon: null,
+      sessionCount: 0,
+      pomodoroDuration: 25 * 60,
+      breakDuration: 5 * 60,
+      isPomodoro: true,
+      timeLeft: 25 * 60,
+      timerId: null,
+      isRunning: false
+    };
+
+    // Pokémon data with evolution chains and placeholder GIFs
+    const pokemonData = {
+      bulbasaur: {
+        name: 'Bulbasaur',
+        sprite: 'assets/bulbasaur.gif',
+        evolutions: [
+          { name: 'Ivysaur', sprite: 'assets/ivysaur.gif' },
+          { name: 'Venusaur', sprite: 'assets/venusaur.gif' }
+        ]
+      },
+      charmander: {
+        name: 'Charmander',
+        sprite: 'assets/charmander.gif',
+        evolutions: [
+          { name: 'Charmeleon', sprite: 'assets/charmeleon.gif' },
+          { name: 'Charizard', sprite: 'assets/charizard.gif' }
+        ]
+      },
+      squirtle: {
+        name: 'Squirtle',
+        sprite: 'assets/squirtle.gif',
+        evolutions: [
+          { name: 'Wartortle', sprite: 'assets/wartortle.gif' },
+          { name: 'Blastoise', sprite: 'assets/blastoise.gif' }
+        ]
+      }
+    };
+
+    // Screen transition functions
+    function showScreen(screenId) {
+      document.querySelectorAll('#logo-screen, #pokemon-selection, #settings-screen, #timer-screen, #break-timer-screen, #evolution-screen, #devolution-screen').forEach(screen => {
+        screen.classList.add('hidden');
+        screen.classList.remove('fade-in');
+      });
+      const targetScreen = document.getElementById(screenId);
+      targetScreen.classList.remove('hidden');
+      targetScreen.classList.add('fade-in');
+      state.currentScreen = screenId;
+    }
+
+    // Logo screen animation
+    setTimeout(() => {
+      document.getElementById('logo-screen').classList.add('logo-slide-up');
+      setTimeout(() => showScreen('pokemon-selection'), 2000);
+    }, 2000);
+
+    // Pokémon selection
+    function selectPokemon(pokemon) {
+      state.selectedPokemon = pokemon;
+      showScreen('settings-screen');
+    }
+
+    // Back to Pokémon selection
+    function goBackToSelection() {
+      clearInterval(state.timerId);
+      state.isRunning = false;
+      document.body.classList.remove('cyan-screen', 'blue-screen');
+      showScreen('pokemon-selection');
+    }
+
+    // Start timer
+    function startTimer() {
+      state.pomodoroDuration = parseInt(document.getElementById('pomodoro-duration').value) * 60;
+      state.breakDuration = parseInt(document.getElementById('break-duration').value) * 60;
+      state.timeLeft = state.pomodoroDuration;
+      state.isPomodoro = true;
+      state.isRunning = false;
+      showScreen('timer-screen');
+      updatePokemonSprite();
+      updateTimerDisplay();
+      document.getElementById('play-pause-btn').textContent = 'Play';
+      document.body.classList.remove('cyan-screen', 'blue-screen');
+    }
+
+    // Toggle timer play/pause (Pomodoro)
+    function toggleTimer() {
+      state.isRunning = !state.isRunning;
+      document.getElementById('play-pause-btn').textContent = state.isRunning ? 'Pause' : 'Play';
+      if (state.isRunning) {
+        startTimerInterval();
+      } else {
+        clearInterval(state.timerId);
+      }
+    }
+
+    // Toggle timer play/pause (Break)
+    function toggleBreakTimer() {
+      state.isRunning = !state.isRunning;
+      document.getElementById('break-play-pause-btn').textContent = state.isRunning ? 'Pause' : 'Play';
+      if (state.isRunning) {
+        startBreakTimerInterval();
+      } else {
+        clearInterval(state.timerId);
+      }
+    }
+
+    // End Pomodoro early (with devolution and break transition)
+    function endPomodoro() {
+      if (!state.isPomodoro) return;
+      clearInterval(state.timerId);
+      state.isRunning = false;
+      document.getElementById('play-pause-btn').textContent = 'Play';
+      if (state.sessionCount > 0) {
+        state.sessionCount--;
+      }
+      const pokemon = pokemonData[state.selectedPokemon];
+      const prevPokemon = state.sessionCount === 0 ? pokemon.name : pokemon.evolutions[state.sessionCount - 1].name;
+      document.getElementById('devolution-message').textContent = `Your ${pokemon.evolutions[state.sessionCount].name} has devolved into ${prevPokemon}!`;
+      document.getElementById('devolution-sprite').src = getPokemonSprite();
+      showScreen('devolution-screen');
+      document.body.classList.add('blue-screen');
+      setTimeout(() => {
+        document.body.classList.remove('blue-screen');
+        document.body.classList.add('cyan-screen');
+        state.isPomodoro = false;
+        state.timeLeft = state.breakDuration;
+        updateBreakPokemonSprite();
+        updateBreakTimerDisplay();
+        document.getElementById('break-play-pause-btn').textContent = 'Play';
+        showScreen('break-timer-screen');
+      }, 2000);
+    }
+
+    // End Break early (returns to Pomodoro)
+    function endBreak() {
+      if (state.isPomodoro) return;
+      clearInterval(state.timerId);
+      state.isRunning = false;
+      document.getElementById('break-play-pause-btn').textContent = 'Play';
+      document.body.classList.remove('cyan-screen');
+      state.isPomodoro = true;
+      state.timeLeft = state.pomodoroDuration;
+      updatePokemonSprite();
+      updateTimerDisplay();
+      document.getElementById('play-pause-btn').textContent = 'Play';
+      showScreen('timer-screen');
+    }
+
+    // Timer logic (Pomodoro)
+    function startTimerInterval() {
+      if (state.timerId) clearInterval(state.timerId);
+      const totalTime = state.pomodoroDuration;
+      document.getElementById('timer-circle').style.strokeDashoffset = 0;
+      state.timerId = setInterval(() => {
+        if (!state.isRunning) return;
+        state.timeLeft--;
+        updateTimerDisplay();
+        updateTimerCircle(totalTime);
+        if (state.timeLeft <= 0) {
+          clearInterval(state.timerId);
+          state.isRunning = false;
+          document.getElementById('play-pause-btn').textContent = 'Play';
+          state.sessionCount++;
+          const pokemon = pokemonData[state.selectedPokemon];
+          const evolvedPokemon = state.sessionCount === 1 ? pokemon.evolutions[0].name : pokemon.evolutions[1].name;
+          document.getElementById('evolution-message').textContent = `Your ${pokemon.name} has evolved into ${evolvedPokemon}!`;
+          document.getElementById('evolution-sprite').src = getPokemonSprite();
+          showScreen('evolution-screen');
+          document.body.classList.add('blue-screen');
+          setTimeout(() => {
+            document.body.classList.remove('blue-screen');
+            document.body.classList.add('cyan-screen');
+            state.isPomodoro = false;
+            state.timeLeft = state.breakDuration;
+            updateBreakPokemonSprite();
+            updateBreakTimerDisplay();
+            document.getElementById('break-play-pause-btn').textContent = 'Play';
+            showScreen('break-timer-screen');
+          }, 2000);
+        }
+      }, 1000);
+    }
+
+    // Timer logic (Break)
+    function startBreakTimerInterval() {
+      if (state.timerId) clearInterval(state.timerId);
+      const totalTime = state.breakDuration;
+      document.getElementById('break-timer-circle').style.strokeDashoffset = 0;
+      state.timerId = setInterval(() => {
+        if (!state.isRunning) return;
+        state.timeLeft--;
+        updateBreakTimerDisplay();
+        updateBreakTimerCircle(totalTime);
+        if (state.timeLeft <= 0) {
+          clearInterval(state.timerId);
+          state.isRunning = false;
+          document.getElementById('break-play-pause-btn').textContent = 'Play';
+          document.body.classList.remove('cyan-screen');
+          state.isPomodoro = true;
+          state.timeLeft = state.pomodoroDuration;
+          updatePokemonSprite();
+          updateTimerDisplay();
+          document.getElementById('play-pause-btn').textContent = 'Play';
+          showScreen('timer-screen');
+        }
+      }, 1000);
+    }
+
+    // Update timer display (Pomodoro)
+    function updateTimerDisplay() {
+      const minutes = Math.floor(state.timeLeft / 60);
+      const seconds = state.timeLeft % 60;
+      document.getElementById('timer-display').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    // Update timer display (Break)
+    function updateBreakTimerDisplay() {
+      const minutes = Math.floor(state.timeLeft / 60);
+      const seconds = state.timeLeft % 60;
+      document.getElementById('break-timer-display').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    // Update timer circle animation (Pomodoro)
+    function updateTimerCircle(totalTime) {
+      const circle = document.getElementById('timer-circle');
+      const progress = state.timeLeft / totalTime;
+      circle.style.strokeDashoffset = 707.5 * (1 - progress);
+    }
+
+    // Update timer circle animation (Break)
+    function updateBreakTimerCircle(totalTime) {
+      const circle = document.getElementById('break-timer-circle');
+      const progress = state.timeLeft / totalTime;
+      circle.style.strokeDashoffset = 707.5 * (1 - progress);
+    }
+
+    // Get current Pokémon sprite
+    function getPokemonSprite() {
+      const pokemon = pokemonData[state.selectedPokemon];
+      if (state.sessionCount === 0) {
+        return pokemon.sprite;
+      } else if (state.sessionCount === 1) {
+        return pokemon.evolutions[0].sprite;
+      } else {
+        return pokemon.evolutions[1].sprite;
+      }
+    }
+
+    // Update Pokémon sprite (Pomodoro)
+    function updatePokemonSprite() {
+      document.getElementById('pokemon-sprite').setAttribute('href', getPokemonSprite());
+    }
+
+    // Update Pokémon sprite (Break)
+    function updateBreakPokemonSprite() {
+      document.getElementById('break-pokemon-sprite').setAttribute('href', getPokemonSprite());
+    }
+  </script>
+</body>
+</html>

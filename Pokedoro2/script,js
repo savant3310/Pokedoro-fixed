@@ -1,0 +1,15 @@
+window.onload = function () {
+    const logo = document.getElementById('logo');
+    
+    // Animate logo up after 1 second
+    setTimeout(() => {
+      logo.classList.add('move-up');
+    }, 1000);
+  
+    // After 3 seconds, hide splash screen and show next screen
+    setTimeout(() => {
+      document.getElementById('splash-screen').style.display = 'none';
+      document.getElementById('pokemon-select-screen').style.display = 'block';
+    }, 3000);
+  };
+  
